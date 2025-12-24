@@ -38,8 +38,8 @@ GitHub Explorer is a SwiftUI iOS app that lets you quickly look up any GitHub us
 Minimum Deployement - 26.0
 Sported Destination - iPhone, iPad, Mac
 
-<img width="1179" height="2556" alt="Simulator Screenshot - iPhone 15 - 2025-12-24 at 18 24 23" src="https://github.com/user-attachments/assets/bd93cf58-6f17-4c1e-828d-9d4a67da3a49" />
-<img width="1179" height="2556" alt="Simulator Screenshot - iPhone 15 - 2025-12-24 at 18 22 40" src="https://github.com/user-attachments/assets/1ceaf68f-6a2e-4401-af13-52583d6be078" />
+<img width="379" height="818" alt="Simulator Screenshot - iPhone 15 - 2025-12-24 at 18 24 23" src="https://github.com/user-attachments/assets/bd93cf58-6f17-4c1e-828d-9d4a67da3a49" />
+<img width="379" height="818" alt="Simulator Screenshot - iPhone 15 - 2025-12-24 at 18 22 40" src="https://github.com/user-attachments/assets/1ceaf68f-6a2e-4401-af13-52583d6be078" />
 
 
 
