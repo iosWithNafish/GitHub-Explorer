@@ -13,6 +13,13 @@ struct GitHubUser: Identifiable, Decodable, Equatable {
     let name: String?
     let bio: String?
     let avatarUrl: String?
+    let followers: Int?
+    let following: Int?
+    let publicRepos: Int?
+    let location: String?
+    let company: String?
+    let blog: String?
+    let htmlUrl: String?
     
     enum CodingKeys: String, CodingKey {
         case id
@@ -20,5 +27,12 @@ struct GitHubUser: Identifiable, Decodable, Equatable {
         case name
         case bio
         case avatarUrl = "avatar_url"
+        case followers
+        case following
+        case publicRepos = "public_repos"
+        case location
+        case company
+        case blog
+        case htmlUrl = "html_url"
     }
 }

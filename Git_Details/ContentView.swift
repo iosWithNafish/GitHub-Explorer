@@ -9,6 +9,12 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var viewModel = GitHubViewModel()
+    @State private var selectedTab: SearchTab = .users
+    
+    enum SearchTab {
+        case users
+        case repositories
+    }
     
     var body: some View {
         NavigationStack {
@@ -28,148 +34,105 @@ struct ContentView: View {
                 
                 ScrollView {
                     VStack(spacing: 24) {
-                        // Main glass card
-                        VStack(spacing: 24) {
-                            // Header
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("GitHub Explorer")
-                                    .font(.largeTitle)
-                                    .fontWeight(.bold)
-                                
-                                Text("Search any GitHub username and save your favourites.")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                        // Header
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("GitHub Explorer")
+                                .font(.largeTitle)
+                                .fontWeight(.bold)
                             
-                            // Search input
-                            HStack(spacing: 12) {
-                                HStack {
-                                    Image(systemName: "magnifyingglass")
-                                        .foregroundStyle(.secondary)
-                                    
-                                    TextField("Enter GitHub username", text: $viewModel.username)
-                                        .textInputAutocapitalization(.never)
-                                        .autocorrectionDisabled(true)
-                                }
-                                .padding(14)
-                                .background(.ultraThinMaterial)
-                                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                        .strokeBorder(Color.white.opacity(0.3), lineWidth: 0.8)
-                                )
-                                
-                                Button {
-                                    Task {
-                                        await viewModel.fetchUser()
-                                    }
-                                } label: {
-                                    if viewModel.isLoading {
-                                        ProgressView()
-                                            .tint(.white)
-                                    } else {
-                                        Image(systemName: "arrow.right.circle.fill")
-                                            .font(.system(size: 26, weight: .semibold))
-                                    }
-                                }
-                                .padding(10)
-                                .background(
-                                    LinearGradient(
-                                        colors: [Color.blue, Color.cyan],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                                .shadow(color: Color.blue.opacity(0.4), radius: 12, x: 0, y: 10)
-                            }
-                            
-                            // Error message
-                            if let error = viewModel.errorMessage {
-                                Text(error)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.red)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                            
-                            // Current user details
-                            if let user = viewModel.currentUser {
-                                userDetailCard(user: user) {
-                                    viewModel.saveCurrentUser()
-                                }
-                            } else if !viewModel.isLoading && viewModel.errorMessage == nil {
-                                // Placeholder when nothing is loaded yet
-                                VStack(spacing: 10) {
-                                    Image(systemName: "person.crop.circle.badge.questionmark")
-                                        .font(.system(size: 48))
-                                        .foregroundStyle(.secondary)
-                                    Text("Start by searching for a GitHub user.")
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 16)
-                            }
+                            Text("Search users and repositories, save your favourites.")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
                         }
-                        .padding(20)
-                        .background(.ultraThinMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                                .strokeBorder(Color.white.opacity(0.35), lineWidth: 0.9)
-                        )
-                        .shadow(color: Color.black.opacity(0.25), radius: 25, x: 0, y: 20)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 4)
                         
-                        // Saved users list as a separate glass card
+                        // Tab selector
+                        Picker("Search Type", selection: $selectedTab) {
+                            Text("Users").tag(SearchTab.users)
+                            Text("Repositories").tag(SearchTab.repositories)
+                        }
+                        .pickerStyle(.segmented)
+                        
+                        // Content based on selected tab
+                        if selectedTab == .users {
+                            userSearchSection
+                        } else {
+                            repositorySearchSection
+                        }
+                        
+                        // Saved users list
                         if !viewModel.savedUsers.isEmpty {
-                            VStack(alignment: .leading, spacing: 12) {
+                            VStack(alignment: .leading, spacing: 16) {
                                 HStack {
                                     Text("Saved Users")
                                         .font(.headline)
+                                        .fontWeight(.semibold)
                                     Spacer()
                                     Text("\(viewModel.savedUsers.count)")
                                         .font(.caption)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background(Color.blue.opacity(0.15))
+                                        .fontWeight(.medium)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 5)
+                                        .background(Color.blue.opacity(0.2))
                                         .clipShape(Capsule())
                                 }
                                 
-                                VStack(spacing: 10) {
-                                    ForEach(viewModel.savedUsers) { user in
-                                        HStack(spacing: 12) {
-                                            avatarView(urlString: user.avatarUrl, size: 40)
-                                            
-                                            VStack(alignment: .leading, spacing: 2) {
-                                                Text(user.name ?? user.login)
-                                                    .font(.subheadline)
-                                                    .fontWeight(.semibold)
-                                                Text("@\(user.login)")
-                                                    .font(.caption)
-                                                    .foregroundStyle(.secondary)
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 12) {
+                                        ForEach(viewModel.savedUsers) { user in
+                                            NavigationLink(destination: UserProfileView(username: user.login)) {
+                                                VStack(spacing: 8) {
+                                                    avatarView(urlString: user.avatarUrl, size: 60)
+                                                    Text(user.name ?? user.login)
+                                                        .font(.caption)
+                                                        .fontWeight(.medium)
+                                                        .lineLimit(1)
+                                                        .frame(width: 70)
+                                                }
+                                                .padding(.vertical, 12)
+                                                .padding(.horizontal, 16)
+                                                .background(.ultraThinMaterial)
+                                                .clipShape(Capsule())
                                             }
-                                            
-                                            Spacer()
+                                            .buttonStyle(.plain)
                                         }
-                                        .padding(10)
-                                        .background(.ultraThinMaterial)
-                                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                                .strokeBorder(Color.white.opacity(0.25), lineWidth: 0.6)
-                                        )
                                     }
                                 }
                             }
-                            .padding(18)
+                            .padding(20)
                             .background(.ultraThinMaterial)
-                            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                                    .strokeBorder(Color.white.opacity(0.3), lineWidth: 0.8)
-                            )
-                            .shadow(color: Color.black.opacity(0.2), radius: 18, x: 0, y: 12)
+                            .clipShape(RoundedRectangle(cornerRadius: 24))
+                            .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
+                        }
+                        
+                        // Saved repositories list
+                        if !viewModel.savedRepositories.isEmpty {
+                            VStack(alignment: .leading, spacing: 16) {
+                                HStack {
+                                    Text("Saved Repositories")
+                                        .font(.headline)
+                                        .fontWeight(.semibold)
+                                    Spacer()
+                                    Text("\(viewModel.savedRepositories.count)")
+                                        .font(.caption)
+                                        .fontWeight(.medium)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 5)
+                                        .background(Color.purple.opacity(0.2))
+                                        .clipShape(Capsule())
+                                }
+                                
+                                VStack(spacing: 12) {
+                                    ForEach(viewModel.savedRepositories) { repo in
+                                        repositoryRowCard(repository: repo)
+                                    }
+                                }
+                            }
+                            .padding(20)
+                            .background(.ultraThinMaterial)
+                            .clipShape(RoundedRectangle(cornerRadius: 24))
+                            .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
                         }
                     }
                     .padding(.horizontal, 20)
@@ -181,13 +144,215 @@ struct ContentView: View {
         }
     }
     
+    // MARK: - User Search Section
+    private var userSearchSection: some View {
+        VStack(spacing: 24) {
+            // Search input
+            HStack(spacing: 12) {
+                HStack(spacing: 10) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.secondary)
+                        .font(.system(size: 16))
+                    
+                    TextField("Enter GitHub username", text: $viewModel.username)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled(true)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+                .background(.ultraThinMaterial)
+                .clipShape(Capsule())
+                
+                Button {
+                    Task {
+                        await viewModel.loadUserProfile(username: viewModel.username)
+                    }
+                } label: {
+                    if viewModel.isLoading {
+                        ProgressView()
+                            .tint(.white)
+                            .frame(width: 24, height: 24)
+                    } else {
+                        Image(systemName: "arrow.right")
+                            .font(.system(size: 16, weight: .semibold))
+                    }
+                }
+                .frame(width: 48, height: 48)
+                .background(
+                    LinearGradient(
+                        colors: [Color.blue, Color.cyan],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .clipShape(Circle())
+                .shadow(color: Color.blue.opacity(0.3), radius: 8, x: 0, y: 4)
+            }
+            
+            // Error message
+            if let error = viewModel.errorMessage {
+                Text(error)
+                    .font(.subheadline)
+                    .foregroundStyle(.red)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            
+            // Current user details
+            if let user = viewModel.currentUser {
+                NavigationLink(destination: UserProfileView(username: user.login)) {
+                    userDetailCard(user: user) {
+                        viewModel.saveCurrentUser()
+                    }
+                }
+                .buttonStyle(.plain)
+                
+                // User repositories
+                if !viewModel.userRepositories.isEmpty {
+                    VStack(alignment: .leading, spacing: 16) {
+                        HStack {
+                            Text("Repositories")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                            Spacer()
+                            Text("\(viewModel.userRepositories.count)")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(Color.purple.opacity(0.2))
+                                .clipShape(Capsule())
+                        }
+                        
+                        VStack(spacing: 12) {
+                            ForEach(viewModel.userRepositories.prefix(5)) { repo in
+                                repositoryRowCard(repository: repo)
+                            }
+                        }
+                    }
+                    .padding(20)
+                    .background(.ultraThinMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 24))
+                    .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
+                }
+            } else if !viewModel.isLoading && viewModel.errorMessage == nil {
+                // Placeholder when nothing is loaded yet
+                VStack(spacing: 10) {
+                    Image(systemName: "person.crop.circle.badge.questionmark")
+                        .font(.system(size: 48))
+                        .foregroundStyle(.secondary)
+                    Text("Start by searching for a GitHub user.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+            }
+        }
+    }
+    
+    // MARK: - Repository Search Section
+    private var repositorySearchSection: some View {
+        VStack(spacing: 24) {
+            // Search input
+            HStack(spacing: 12) {
+                HStack(spacing: 10) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.secondary)
+                        .font(.system(size: 16))
+                    
+                    TextField("Search repositories (e.g., swift, react)", text: $viewModel.repositorySearchQuery)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled(true)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+                .background(.ultraThinMaterial)
+                .clipShape(Capsule())
+                
+                Button {
+                    Task {
+                        await viewModel.searchRepositories()
+                    }
+                } label: {
+                    if viewModel.isSearchingRepositories {
+                        ProgressView()
+                            .tint(.white)
+                            .frame(width: 24, height: 24)
+                    } else {
+                        Image(systemName: "arrow.right")
+                            .font(.system(size: 16, weight: .semibold))
+                    }
+                }
+                .frame(width: 48, height: 48)
+                .background(
+                    LinearGradient(
+                        colors: [Color.purple, Color.pink],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .clipShape(Circle())
+                .shadow(color: Color.purple.opacity(0.3), radius: 8, x: 0, y: 4)
+            }
+            
+            // Error message
+            if let error = viewModel.repositoryErrorMessage {
+                Text(error)
+                    .font(.subheadline)
+                    .foregroundStyle(.red)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            
+            // Search results
+            if !viewModel.searchedRepositories.isEmpty {
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack {
+                        Text("Search Results")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                        Spacer()
+                        Text("\(viewModel.searchedRepositories.count)")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(Color.purple.opacity(0.2))
+                            .clipShape(Capsule())
+                    }
+                    
+                    VStack(spacing: 12) {
+                        ForEach(viewModel.searchedRepositories) { repo in
+                            repositoryDetailCard(repository: repo)
+                        }
+                    }
+                }
+                .padding(20)
+                .background(.ultraThinMaterial)
+                .clipShape(RoundedRectangle(cornerRadius: 24))
+                .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
+            } else if !viewModel.isSearchingRepositories && viewModel.repositoryErrorMessage == nil {
+                // Placeholder when nothing is loaded yet
+                VStack(spacing: 10) {
+                    Image(systemName: "book.closed")
+                        .font(.system(size: 48))
+                        .foregroundStyle(.secondary)
+                    Text("Search for repositories by keyword or technology.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+            }
+        }
+    }
+    
     @ViewBuilder
     private func userDetailCard(user: GitHubUser, onSave: @escaping () -> Void) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(spacing: 20) {
             HStack(alignment: .center, spacing: 16) {
                 avatarView(urlString: user.avatarUrl, size: 80)
                 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 6) {
                     Text(user.name ?? user.login)
                         .font(.title2)
                         .fontWeight(.bold)
@@ -204,19 +369,29 @@ struct ContentView: View {
                 Text(bio)
                     .font(.body)
                     .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
             
-            HStack {
+            // Stats row
+            HStack(spacing: 16) {
+                statButton(value: "\(user.followers ?? 0)", label: "Followers", icon: "person.2.fill", color: .blue)
+                statButton(value: "\(user.following ?? 0)", label: "Following", icon: "person.fill", color: .purple)
+                statButton(value: "\(user.publicRepos ?? 0)", label: "Repos", icon: "book.fill", color: .green)
+            }
+            .padding(.vertical, 4)
+            
+            HStack(spacing: 12) {
                 Button {
                     onSave()
                 } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "bookmark.fill")
-                        Text("Save User")
+                    HStack(spacing: 6) {
+                        Image(systemName: viewModel.savedUsers.contains(user) ? "bookmark.fill" : "bookmark")
+                        Text(viewModel.savedUsers.contains(user) ? "Saved" : "Save")
                     }
-                    .font(.headline)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
                     .padding(.horizontal, 20)
-                    .padding(.vertical, 10)
+                    .padding(.vertical, 12)
                     .background(
                         LinearGradient(
                             colors: [Color.green, Color.teal],
@@ -225,20 +400,42 @@ struct ContentView: View {
                         )
                     )
                     .foregroundStyle(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .clipShape(Capsule())
                 }
                 
                 Spacer()
+                
+                HStack(spacing: 6) {
+                    Text("View Profile")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    Image(systemName: "arrow.right")
+                        .font(.caption)
+                }
+                .foregroundStyle(.blue)
             }
         }
-        .padding()
+        .padding(20)
         .frame(maxWidth: .infinity)
         .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.35), lineWidth: 0.9)
-        )
+        .clipShape(RoundedRectangle(cornerRadius: 24))
+        .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
+    }
+    
+    @ViewBuilder
+    private func statButton(value: String, label: String, icon: String, color: Color) -> some View {
+        VStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.caption)
+                .foregroundStyle(color)
+            Text(value)
+                .font(.subheadline)
+                .fontWeight(.semibold)
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
     }
     
     @ViewBuilder
@@ -280,6 +477,150 @@ struct ContentView: View {
                     .foregroundStyle(.gray)
             )
             .frame(width: size, height: size)
+    }
+    
+    // MARK: - Repository Views
+    @ViewBuilder
+    private func repositoryDetailCard(repository: GitHubRepository) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 12) {
+                avatarView(urlString: repository.owner.avatarUrl, size: 48)
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(repository.name)
+                        .font(.headline)
+                        .fontWeight(.bold)
+                    
+                    Text(repository.owner.login)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                
+                Spacer()
+                
+                Button {
+                    if viewModel.savedRepositories.contains(repository) {
+                        viewModel.removeSavedRepository(repository)
+                    } else {
+                        viewModel.saveRepository(repository)
+                    }
+                } label: {
+                    Image(systemName: viewModel.savedRepositories.contains(repository) ? "bookmark.fill" : "bookmark")
+                        .font(.system(size: 16))
+                        .foregroundStyle(viewModel.savedRepositories.contains(repository) ? .yellow : .secondary)
+                }
+            }
+            
+            if let description = repository.description, !description.isEmpty {
+                Text(description)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+            
+            HStack(spacing: 12) {
+                HStack(spacing: 4) {
+                    Image(systemName: "star.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.yellow)
+                    Text("\(repository.stars)")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.yellow.opacity(0.15))
+                .clipShape(Capsule())
+                
+                HStack(spacing: 4) {
+                    Image(systemName: "tuningfork")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Text("\(repository.forks)")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.gray.opacity(0.1))
+                .clipShape(Capsule())
+                
+                if let language = repository.language {
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(Color.blue)
+                            .frame(width: 6, height: 6)
+                        Text(language)
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundStyle(.blue)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.blue.opacity(0.15))
+                    .clipShape(Capsule())
+                }
+                
+                Spacer()
+                
+                Link(destination: URL(string: repository.htmlUrl)!) {
+                    Image(systemName: "arrow.up.right")
+                        .font(.caption)
+                        .foregroundStyle(.blue)
+                        .padding(6)
+                        .background(Color.blue.opacity(0.1))
+                        .clipShape(Circle())
+                }
+            }
+        }
+        .padding(16)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+    }
+    
+    @ViewBuilder
+    private func repositoryRowCard(repository: GitHubRepository) -> some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(repository.name)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                
+                if let description = repository.description, !description.isEmpty {
+                    Text(description)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            
+            Spacer()
+            
+            HStack(spacing: 8) {
+                HStack(spacing: 3) {
+                    Image(systemName: "star.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.yellow)
+                    Text("\(repository.stars)")
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                }
+                
+                if let language = repository.language {
+                    Text(language)
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                        .foregroundStyle(.blue)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(Color.blue.opacity(0.1))
+                        .clipShape(Capsule())
+                }
+            }
+        }
+        .padding(14)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 }
 
