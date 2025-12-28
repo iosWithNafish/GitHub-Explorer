@@ -33,20 +33,20 @@ struct ContentView: View {
                 .blur(radius: 30)
                 
                 ScrollView {
-                    VStack(spacing: 24) {
-                        // Header
+                        VStack(spacing: 24) {
+                            // Header
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("GitHub Explorer")
-                                .font(.largeTitle)
-                                .fontWeight(.bold)
-                            
+                                Text("GitHub Explorer")
+                                    .font(.largeTitle)
+                                    .fontWeight(.bold)
+                                
                             Text("Search users and repositories, save your favourites.")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 4)
-                        
+                            
                         // Tab selector
                         Picker("Search Type", selection: $selectedTab) {
                             Text("Users").tag(SearchTab.users)
@@ -79,8 +79,8 @@ struct ContentView: View {
                                 }
                                 
                                 ScrollView(.horizontal, showsIndicators: false) {
-                                    HStack(spacing: 12) {
-                                        ForEach(viewModel.savedUsers) { user in
+                            HStack(spacing: 12) {
+                                        ForEach(viewModel.savedUsers, id: \.id) { user in
                                             NavigationLink(destination: UserProfileView(username: user.login)) {
                                                 VStack(spacing: 8) {
                                                     avatarView(urlString: user.avatarUrl, size: 60)
@@ -124,7 +124,7 @@ struct ContentView: View {
                                 }
                                 
                                 VStack(spacing: 12) {
-                                    ForEach(viewModel.savedRepositories) { repo in
+                                    ForEach(viewModel.savedRepositories, id: \.id) { repo in
                                         repositoryRowCard(repository: repo)
                                     }
                                 }
@@ -150,58 +150,56 @@ struct ContentView: View {
             // Search input
             HStack(spacing: 12) {
                 HStack(spacing: 10) {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundStyle(.secondary)
+                                    Image(systemName: "magnifyingglass")
+                                        .foregroundStyle(.secondary)
                         .font(.system(size: 16))
-                    
-                    TextField("Enter GitHub username", text: $viewModel.username)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled(true)
-                }
+                                    
+                                    TextField("Enter GitHub username", text: $viewModel.username)
+                                        .textInputAutocapitalization(.never)
+                                        .autocorrectionDisabled(true)
+                                }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 14)
-                .background(.ultraThinMaterial)
+                                .background(.ultraThinMaterial)
                 .clipShape(Capsule())
-                
-                Button {
-                    Task {
-                        await viewModel.loadUserProfile(username: viewModel.username)
-                    }
-                } label: {
-                    if viewModel.isLoading {
-                        ProgressView()
-                            .tint(.white)
-                            .frame(width: 24, height: 24)
-                    } else {
-                        Image(systemName: "arrow.right")
-                            .font(.system(size: 16, weight: .semibold))
-                    }
-                }
+                                
+                                AsyncButton {
+                                    await viewModel.loadUserProfile(username: viewModel.username)
+                                } label: {
+                                    if viewModel.isLoading {
+                                        ProgressView()
+                                            .tint(.white)
+                                            .frame(width: 24, height: 24)
+                                    } else {
+                                        Image(systemName: "arrow.right")
+                                            .font(.system(size: 16, weight: .semibold))
+                                    }
+                                }
                 .frame(width: 48, height: 48)
-                .background(
-                    LinearGradient(
-                        colors: [Color.blue, Color.cyan],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+                                .background(
+                                    LinearGradient(
+                                        colors: [Color.blue, Color.cyan],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
                 .clipShape(Circle())
                 .shadow(color: Color.blue.opacity(0.3), radius: 8, x: 0, y: 4)
-            }
-            
-            // Error message
-            if let error = viewModel.errorMessage {
-                Text(error)
-                    .font(.subheadline)
-                    .foregroundStyle(.red)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            
-            // Current user details
-            if let user = viewModel.currentUser {
+                            }
+                            
+                            // Error message
+                            if let error = viewModel.errorMessage {
+                                Text(error)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.red)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            
+                            // Current user details
+                            if let user = viewModel.currentUser {
                 NavigationLink(destination: UserProfileView(username: user.login)) {
-                    userDetailCard(user: user) {
-                        viewModel.saveCurrentUser()
+                                userDetailCard(user: user) {
+                                    viewModel.saveCurrentUser()
                     }
                 }
                 .buttonStyle(.plain)
@@ -224,7 +222,7 @@ struct ContentView: View {
                         }
                         
                         VStack(spacing: 12) {
-                            ForEach(viewModel.userRepositories.prefix(5)) { repo in
+                            ForEach(Array(viewModel.userRepositories.prefix(5)), id: \.id) { repo in
                                 repositoryRowCard(repository: repo)
                             }
                         }
@@ -233,21 +231,21 @@ struct ContentView: View {
                     .background(.ultraThinMaterial)
                     .clipShape(RoundedRectangle(cornerRadius: 24))
                     .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
-                }
-            } else if !viewModel.isLoading && viewModel.errorMessage == nil {
-                // Placeholder when nothing is loaded yet
-                VStack(spacing: 10) {
-                    Image(systemName: "person.crop.circle.badge.questionmark")
-                        .font(.system(size: 48))
-                        .foregroundStyle(.secondary)
-                    Text("Start by searching for a GitHub user.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-            }
-        }
+                                }
+                            } else if !viewModel.isLoading && viewModel.errorMessage == nil {
+                                // Placeholder when nothing is loaded yet
+                                VStack(spacing: 10) {
+                                    Image(systemName: "person.crop.circle.badge.questionmark")
+                                        .font(.system(size: 48))
+                                        .foregroundStyle(.secondary)
+                                    Text("Start by searching for a GitHub user.")
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                            }
+                        }
     }
     
     // MARK: - Repository Search Section
@@ -266,13 +264,11 @@ struct ContentView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 14)
-                .background(.ultraThinMaterial)
+                        .background(.ultraThinMaterial)
                 .clipShape(Capsule())
                 
-                Button {
-                    Task {
-                        await viewModel.searchRepositories()
-                    }
+                AsyncButton {
+                    await viewModel.searchRepositories()
                 } label: {
                     if viewModel.isSearchingRepositories {
                         ProgressView()
@@ -290,7 +286,7 @@ struct ContentView: View {
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
-                )
+                        )
                 .clipShape(Circle())
                 .shadow(color: Color.purple.opacity(0.3), radius: 8, x: 0, y: 4)
             }
@@ -306,28 +302,28 @@ struct ContentView: View {
             // Search results
             if !viewModel.searchedRepositories.isEmpty {
                 VStack(alignment: .leading, spacing: 16) {
-                    HStack {
+                                HStack {
                         Text("Search Results")
-                            .font(.headline)
+                                        .font(.headline)
                             .fontWeight(.semibold)
-                        Spacer()
+                                    Spacer()
                         Text("\(viewModel.searchedRepositories.count)")
-                            .font(.caption)
+                                        .font(.caption)
                             .fontWeight(.medium)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 5)
                             .background(Color.purple.opacity(0.2))
-                            .clipShape(Capsule())
-                    }
-                    
+                                        .clipShape(Capsule())
+                                }
+                                
                     VStack(spacing: 12) {
-                        ForEach(viewModel.searchedRepositories) { repo in
+                        ForEach(viewModel.searchedRepositories, id: \.id) { repo in
                             repositoryDetailCard(repository: repo)
-                        }
+                                            }
                     }
-                }
+                                        }
                 .padding(20)
-                .background(.ultraThinMaterial)
+                                        .background(.ultraThinMaterial)
                 .clipShape(RoundedRectangle(cornerRadius: 24))
                 .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
             } else if !viewModel.isSearchingRepositories && viewModel.repositoryErrorMessage == nil {
@@ -339,10 +335,10 @@ struct ContentView: View {
                     Text("Search for repositories by keyword or technology.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                }
+                    }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
-            }
+                }
         }
     }
     

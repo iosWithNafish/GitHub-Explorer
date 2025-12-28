@@ -199,7 +199,7 @@ struct UserProfileView: View {
             }
             
             VStack(spacing: 10) {
-                ForEach(viewModel.userRepositories.prefix(10)) { repo in
+                ForEach(Array(viewModel.userRepositories.prefix(10)), id: \.id) { repo in
                     repositoryRowCard(repository: repo)
                 }
             }
@@ -241,7 +241,7 @@ struct UserProfileView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else {
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                    ForEach(viewModel.followers.prefix(20)) { follower in
+                    ForEach(Array(viewModel.followers.prefix(20)), id: \.id) { follower in
                         NavigationLink(destination: UserProfileView(username: follower.login)) {
                             followerRowCard(user: follower)
                         }
@@ -287,7 +287,7 @@ struct UserProfileView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else {
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                    ForEach(viewModel.following.prefix(20)) { user in
+                    ForEach(Array(viewModel.following.prefix(20)), id: \.id) { user in
                         NavigationLink(destination: UserProfileView(username: user.login)) {
                             followerRowCard(user: user)
                         }

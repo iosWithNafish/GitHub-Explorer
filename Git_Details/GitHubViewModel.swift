@@ -8,46 +8,118 @@
 import Foundation
 import Combine
 
+// MARK: - ViewState Enums
+enum UserSearchState {
+    case idle
+    case loading
+    case loaded(GitHubUser)
+    case error(String)
+}
+
+enum RepositorySearchState {
+    case idle
+    case loading
+    case loaded([GitHubRepository])
+    case error(String)
+}
+
+enum FollowersState {
+    case idle
+    case loading
+    case loaded([GitHubUser])
+    case error(String)
+}
+
+enum FollowingState {
+    case idle
+    case loading
+    case loaded([GitHubUser])
+    case error(String)
+}
+
 final class GitHubViewModel: ObservableObject {
     @Published var username: String = ""
     @Published var currentUser: GitHubUser?
     @Published var savedUsers: [GitHubUser] = []
-    @Published var isLoading: Bool = false
-    @Published var errorMessage: String?
+    @Published var userSearchState: UserSearchState = .idle
     
     // Repository search properties
     @Published var repositorySearchQuery: String = ""
     @Published var searchedRepositories: [GitHubRepository] = []
     @Published var userRepositories: [GitHubRepository] = []
     @Published var selectedRepository: GitHubRepository?
-    @Published var isSearchingRepositories: Bool = false
-    @Published var repositoryErrorMessage: String?
+    @Published var repositorySearchState: RepositorySearchState = .idle
     @Published var savedRepositories: [GitHubRepository] = []
     
     // Followers/Following properties
     @Published var followers: [GitHubUser] = []
     @Published var following: [GitHubUser] = []
-    @Published var isLoadingFollowers: Bool = false
-    @Published var isLoadingFollowing: Bool = false
-    @Published var followersErrorMessage: String?
-    @Published var followingErrorMessage: String?
+    @Published var followersState: FollowersState = .idle
+    @Published var followingState: FollowingState = .idle
+    
+    // Computed properties for backward compatibility
+    var isLoading: Bool {
+        if case .loading = userSearchState { return true }
+        return false
+    }
+    
+    var errorMessage: String? {
+        if case .error(let message) = userSearchState {
+            return message
+        }
+        return nil
+    }
+    
+    var isSearchingRepositories: Bool {
+        if case .loading = repositorySearchState { return true }
+        return false
+    }
+    
+    var repositoryErrorMessage: String? {
+        if case .error(let message) = repositorySearchState {
+            return message
+        }
+        return nil
+    }
+    
+    var isLoadingFollowers: Bool {
+        if case .loading = followersState { return true }
+        return false
+    }
+    
+    var followersErrorMessage: String? {
+        if case .error(let message) = followersState {
+            return message
+        }
+        return nil
+    }
+    
+    var isLoadingFollowing: Bool {
+        if case .loading = followingState { return true }
+        return false
+    }
+    
+    var followingErrorMessage: String? {
+        if case .error(let message) = followingState {
+            return message
+        }
+        return nil
+    }
     
     func fetchUser() async {
         let trimmed = username.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
-            errorMessage = "Please enter a GitHub username."
+            userSearchState = .error("Please enter a GitHub username.")
             currentUser = nil
             return
         }
         
-        isLoading = true
-        errorMessage = nil
+        userSearchState = .loading
         currentUser = nil
         
         let urlString = "https://api.github.com/users/\(trimmed)"
         guard let url = URL(string: urlString) else {
-            errorMessage = "Invalid username."
-            isLoading = false
+            userSearchState = .error("Invalid username.")
             return
         }
         
@@ -55,19 +127,17 @@ final class GitHubViewModel: ObservableObject {
             let (data, response) = try await URLSession.shared.data(from: url)
             
             if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 404 {
-                errorMessage = "User not found."
-                isLoading = false
+                userSearchState = .error("User not found.")
                 return
             }
             
             let decoder = JSONDecoder()
             let user = try decoder.decode(GitHubUser.self, from: data)
             currentUser = user
+            userSearchState = .loaded(user)
         } catch {
-            errorMessage = "Failed to load user. Please try again."
+            userSearchState = .error("Failed to load user. Please try again.")
         }
-        
-        isLoading = false
     }
     
     func saveCurrentUser() {
@@ -82,20 +152,18 @@ final class GitHubViewModel: ObservableObject {
     func searchRepositories() async {
         let trimmed = repositorySearchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
-            repositoryErrorMessage = "Please enter a search query."
+            repositorySearchState = .error("Please enter a search query.")
             searchedRepositories = []
             return
         }
         
-        isSearchingRepositories = true
-        repositoryErrorMessage = nil
+        repositorySearchState = .loading
         searchedRepositories = []
         
         // URL encode the query
         guard let encodedQuery = trimmed.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
               let url = URL(string: "https://api.github.com/search/repositories?q=\(encodedQuery)&sort=stars&order=desc&per_page=20") else {
-            repositoryErrorMessage = "Invalid search query."
-            isSearchingRepositories = false
+            repositorySearchState = .error("Invalid search query.")
             return
         }
         
@@ -104,12 +172,10 @@ final class GitHubViewModel: ObservableObject {
             
             if let httpResponse = response as? HTTPURLResponse {
                 if httpResponse.statusCode == 403 {
-                    repositoryErrorMessage = "Rate limit exceeded. Please try again later."
-                    isSearchingRepositories = false
+                    repositorySearchState = .error("Rate limit exceeded. Please try again later.")
                     return
                 } else if httpResponse.statusCode != 200 {
-                    repositoryErrorMessage = "Failed to search repositories."
-                    isSearchingRepositories = false
+                    repositorySearchState = .error("Failed to search repositories.")
                     return
                 }
             }
@@ -117,28 +183,22 @@ final class GitHubViewModel: ObservableObject {
             let decoder = JSONDecoder()
             let searchResponse = try decoder.decode(RepositorySearchResponse.self, from: data)
             searchedRepositories = searchResponse.items
+            repositorySearchState = .loaded(searchResponse.items)
         } catch {
-            repositoryErrorMessage = "Failed to search repositories. Please try again."
+            repositorySearchState = .error("Failed to search repositories. Please try again.")
         }
-        
-        isSearchingRepositories = false
     }
     
     func fetchUserRepositories(username: String) async {
         let trimmed = username.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
-            repositoryErrorMessage = "Please enter a GitHub username."
             userRepositories = []
             return
         }
         
-        isSearchingRepositories = true
-        repositoryErrorMessage = nil
         userRepositories = []
         
         guard let url = URL(string: "https://api.github.com/users/\(trimmed)/repos?sort=updated&per_page=20") else {
-            repositoryErrorMessage = "Invalid username."
-            isSearchingRepositories = false
             return
         }
         
@@ -147,12 +207,8 @@ final class GitHubViewModel: ObservableObject {
             
             if let httpResponse = response as? HTTPURLResponse {
                 if httpResponse.statusCode == 404 {
-                    repositoryErrorMessage = "User not found."
-                    isSearchingRepositories = false
                     return
                 } else if httpResponse.statusCode == 403 {
-                    repositoryErrorMessage = "Rate limit exceeded. Please try again later."
-                    isSearchingRepositories = false
                     return
                 }
             }
@@ -161,10 +217,8 @@ final class GitHubViewModel: ObservableObject {
             let repositories = try decoder.decode([GitHubRepository].self, from: data)
             userRepositories = repositories
         } catch {
-            repositoryErrorMessage = "Failed to load repositories. Please try again."
+            // Silently fail for user repos as it's a chained call
         }
-        
-        isSearchingRepositories = false
     }
     
     func saveRepository(_ repository: GitHubRepository) {
@@ -182,18 +236,16 @@ final class GitHubViewModel: ObservableObject {
     func fetchFollowers(username: String) async {
         let trimmed = username.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
-            followersErrorMessage = "Invalid username."
+            followersState = .error("Invalid username.")
             followers = []
             return
         }
         
-        isLoadingFollowers = true
-        followersErrorMessage = nil
+        followersState = .loading
         followers = []
         
         guard let url = URL(string: "https://api.github.com/users/\(trimmed)/followers?per_page=100") else {
-            followersErrorMessage = "Invalid username."
-            isLoadingFollowers = false
+            followersState = .error("Invalid username.")
             return
         }
         
@@ -202,12 +254,10 @@ final class GitHubViewModel: ObservableObject {
             
             if let httpResponse = response as? HTTPURLResponse {
                 if httpResponse.statusCode == 404 {
-                    followersErrorMessage = "User not found."
-                    isLoadingFollowers = false
+                    followersState = .error("User not found.")
                     return
                 } else if httpResponse.statusCode == 403 {
-                    followersErrorMessage = "Rate limit exceeded. Please try again later."
-                    isLoadingFollowers = false
+                    followersState = .error("Rate limit exceeded. Please try again later.")
                     return
                 }
             }
@@ -215,28 +265,25 @@ final class GitHubViewModel: ObservableObject {
             let decoder = JSONDecoder()
             let followersList = try decoder.decode([GitHubUser].self, from: data)
             followers = followersList
+            followersState = .loaded(followersList)
         } catch {
-            followersErrorMessage = "Failed to load followers. Please try again."
+            followersState = .error("Failed to load followers. Please try again.")
         }
-        
-        isLoadingFollowers = false
     }
     
     func fetchFollowing(username: String) async {
         let trimmed = username.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
-            followingErrorMessage = "Invalid username."
+            followingState = .error("Invalid username.")
             following = []
             return
         }
         
-        isLoadingFollowing = true
-        followingErrorMessage = nil
+        followingState = .loading
         following = []
         
         guard let url = URL(string: "https://api.github.com/users/\(trimmed)/following?per_page=100") else {
-            followingErrorMessage = "Invalid username."
-            isLoadingFollowing = false
+            followingState = .error("Invalid username.")
             return
         }
         
@@ -245,12 +292,10 @@ final class GitHubViewModel: ObservableObject {
             
             if let httpResponse = response as? HTTPURLResponse {
                 if httpResponse.statusCode == 404 {
-                    followingErrorMessage = "User not found."
-                    isLoadingFollowing = false
+                    followingState = .error("User not found.")
                     return
                 } else if httpResponse.statusCode == 403 {
-                    followingErrorMessage = "Rate limit exceeded. Please try again later."
-                    isLoadingFollowing = false
+                    followingState = .error("Rate limit exceeded. Please try again later.")
                     return
                 }
             }
@@ -258,24 +303,21 @@ final class GitHubViewModel: ObservableObject {
             let decoder = JSONDecoder()
             let followingList = try decoder.decode([GitHubUser].self, from: data)
             following = followingList
+            followingState = .loaded(followingList)
         } catch {
-            followingErrorMessage = "Failed to load following. Please try again."
+            followingState = .error("Failed to load following. Please try again.")
         }
-        
-        isLoadingFollowing = false
     }
     
     func loadUserProfile(username: String) async {
         let trimmed = username.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         
-        isLoading = true
-        errorMessage = nil
+        userSearchState = .loading
         
         let urlString = "https://api.github.com/users/\(trimmed)"
         guard let url = URL(string: urlString) else {
-            errorMessage = "Invalid username."
-            isLoading = false
+            userSearchState = .error("Invalid username.")
             return
         }
         
@@ -283,14 +325,14 @@ final class GitHubViewModel: ObservableObject {
             let (data, response) = try await URLSession.shared.data(from: url)
             
             if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 404 {
-                errorMessage = "User not found."
-                isLoading = false
+                userSearchState = .error("User not found.")
                 return
             }
             
             let decoder = JSONDecoder()
             let user = try decoder.decode(GitHubUser.self, from: data)
             currentUser = user
+            userSearchState = .loaded(user)
             
             // Chain API calls: fetch repositories, followers, and following
             async let reposTask = fetchUserRepositories(username: user.login)
@@ -299,10 +341,8 @@ final class GitHubViewModel: ObservableObject {
             
             _ = await (reposTask, followersTask, followingTask)
         } catch {
-            errorMessage = "Failed to load user. Please try again."
+            userSearchState = .error("Failed to load user. Please try again.")
         }
-        
-        isLoading = false
     }
 }
 
